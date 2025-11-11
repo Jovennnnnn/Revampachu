@@ -438,19 +438,36 @@ body {
   }
 }
 
+/* Inline validation messages: hidden by default, shown when .show is added
+   Support both legacy .error-message/.success-message and JS-driven
+   .validation-message.error / .validation-message.success */
 .validation-message {
-      font-size: 0.875rem;
-      margin-top: 0.25rem;
-      display: none;
-    }
-    .validation-message.error {
-      color: #dc3545;
-      display: block;
-    }
-    .validation-message.success {
-      color: #198754;
-      display: block;
-    }
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: none;
+}
+.error-message,
+.validation-message.error {
+  color: #dc3545; /* danger */
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: none;
+  animation: reveal-up 0.3s ease-out;
+}
+.success-message,
+.validation-message.success {
+  color: #198754; /* success */
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: none;
+  animation: reveal-up 0.3s ease-out;
+}
+.error-message.show,
+.validation-message.error.show,
+.success-message.show,
+.validation-message.success.show {
+  display: block;
+}
     .form-control.is-invalid {
       border-color: #dc3545;
     }

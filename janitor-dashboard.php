@@ -844,10 +844,6 @@ try {
                             <button type="button" class="password-toggle-btn" data-target="#newPassword"><i class="fa-solid fa-eye"></i></button>
                           </div>
                           <div class="validation-message"></div>
-                          <div class="password-strength">
-                            <small>Password strength:</small>
-                            <div class="strength-bar"><div class="strength-fill"></div></div>
-                          </div>
                         </div>
                         <div class="form-group">
                           <label class="form-label">Confirm Password</label>
@@ -1641,5 +1637,6 @@ try {
   })();
   </script>
   <script src="js/scroll-progress.js"></script>
+  <script src="js/password-toggle.js"></script>
 </body>
 </html>

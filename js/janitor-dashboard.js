@@ -13,6 +13,7 @@ const JANITOR_API = {
   updateBinStatus: "api/janitor/update-bin-stats.php",
   updateProfile: "api/janitor/update-profile.php",
   changePassword: "api/janitor/change-password.php",
+  verifyCurrentPassword: "api/janitor/verify-current-password.php",
 }
 
 // ============================================
@@ -380,8 +381,8 @@ const validationRules = {
     message: "Phone number must be exactly 11 digits",
   },
   password: {
-    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[a-zA-Z\d@$!%*?&]{5,}$/,
-    message: "Password must have uppercase, lowercase, number, special symbol, and be 5+ characters",
+    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[a-zA-Z\d@$!%*?&]{6,}$/, 
+    message: "Password must be 6+ characters and include uppercase, lowercase, number and special symbol",
   },
 }
 
@@ -449,7 +450,7 @@ function checkPasswordStrength(password) {
   if (/[A-Z]/.test(password)) strength++
   if (/\d/.test(password)) strength++
   if (/[@$!%*?&]/.test(password)) strength++
-  if (password.length >= 8) strength++
+  if (password.length >= 6) strength++
 
   const percentage = (strength / 5) * 100
   strengthFill.style.width = percentage + "%"
@@ -503,6 +504,15 @@ async function fetchAPI(endpoint, method = "GET", data = null) {
     console.error("[v0] Fetch Error:", error)
     showAlert("personalInfoAlert", "Failed to connect to server", "danger")
     return { success: false, message: error.message }
+  }
+}
+
+// Utility: debounce helper
+function debounce(fn, wait) {
+  let timer = null
+  return function (...args) {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn.apply(this, args), wait)
   }
 }
 
@@ -1246,27 +1256,10 @@ function initializeButtons() {
     })
   }
 
-  const passwordToggleBtns = document.querySelectorAll(".password-toggle-btn")
-  passwordToggleBtns.forEach((btn) => {
-    btn.addEventListener("click", function (e) {
-      e.preventDefault()
-      const targetId = this.getAttribute("data-target")
-      const passwordInput = document.querySelector(targetId)
-      const icon = this.querySelector("i")
-
-      if (!passwordInput) return
-
-      if (passwordInput.type === "password") {
-        passwordInput.type = "text"
-        icon.classList.remove("fa-eye")
-        icon.classList.add("fa-eye-slash")
-      } else {
-        passwordInput.type = "password"
-        icon.classList.remove("fa-eye-slash")
-        icon.classList.add("fa-eye")
-      }
-    })
-  })
+  // Password toggle handler moved to separate js/password-toggle.js file
+  // for independent, robust initialization
+  // const passwordToggleBtns = document.querySelectorAll(".password-toggle-btn")
+  // ... (removed - see js/password-toggle.js)
 
   const personalInfoForm = document.getElementById("personalInfoForm")
   if (personalInfoForm) {
@@ -1371,14 +1364,53 @@ function initializeButtons() {
     const newPasswordInput = document.getElementById("newPassword")
     const confirmPasswordInput = document.getElementById("confirmNewPassword")
 
+    // Live verification while typing (debounced) for current password
+    const verifyCurrentDebounced = debounce(async (value) => {
+      try {
+        const result = await fetchAPI(JANITOR_API.verifyCurrentPassword, "POST", {
+          current_password: value,
+        })
+
+        // If API responded with a boolean 'valid', show inline feedback
+        if (result && typeof result.valid === 'boolean') {
+          if (result.valid) {
+            showMessage(currentPasswordInput, result.message || 'Current password is correct', 'success')
+          } else {
+            showMessage(currentPasswordInput, result.message || 'Current password is incorrect', 'error')
+          }
+        } else if (result && !result.success) {
+          // API-level error
+          showMessage(currentPasswordInput, result.message || 'Unable to verify password', 'error')
+        }
+      } catch (err) {
+        console.error('verifyCurrentDebounced error', err)
+      }
+    }, 450)
+
+    currentPasswordInput?.addEventListener('input', (e) => {
+      const v = e.target.value || ''
+      if (!v.trim()) {
+        clearMessage(currentPasswordInput)
+        return
+      }
+
+      // show a lightweight checking state
+      const messageEl = currentPasswordInput.nextElementSibling
+      if (messageEl && messageEl.classList.contains('validation-message')) {
+        messageEl.textContent = 'Checking current password...'
+        messageEl.className = 'validation-message'
+      }
+
+      verifyCurrentDebounced(v)
+    })
+
     newPasswordInput?.addEventListener("input", () => {
       checkPasswordStrength(newPasswordInput.value)
     })
 
+    // Do not pre-verify current password on blur; server will verify on submit
     currentPasswordInput?.addEventListener("blur", () => {
-      if (currentPasswordInput.value.trim()) {
-        showMessage(currentPasswordInput, "Password verified", "success")
-      } else {
+      if (!currentPasswordInput.value.trim()) {
         clearMessage(currentPasswordInput)
       }
     })
@@ -1441,6 +1473,13 @@ function initializeButtons() {
           clearMessage(confirmPasswordInput)
           const strengthFill = document.querySelector(".strength-fill")
           if (strengthFill) strengthFill.style.width = "0%"
+        } else {
+          // Show server error in password alert area
+          showAlert("passwordAlert", result.message || "Failed to update password", "danger")
+          // If server indicates incorrect current password, mark the field
+          if (result.message && result.message.toLowerCase().includes('current password')) {
+            showMessage(currentPasswordInput, result.message, 'error')
+          }
         }
       } else {
         showAlert("passwordAlert", "Please fix the errors above", "danger")

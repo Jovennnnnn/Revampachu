@@ -743,5 +743,6 @@ try {
     });
   </script>
     <script src="js/scroll-progress.js"></script>
+    <script src="js/password-toggle.js"></script>
 </body>
 </html>
